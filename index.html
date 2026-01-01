@@ -1,39 +1,638 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title id="title">Loading Channel...</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            font-family: Arial, sans-serif;
+        }
+        #player-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: #000;
+        }
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+        #controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            padding: 15px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+        #player-container:hover #controls,
+        #controls.visible {
+            opacity: 1;
+        }
+        .control-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+        .control-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .control-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        #volume-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #volume-slider {
+            width: 60px;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 150;
+        }
+        .spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        #error-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 200;
+            display: none;
+        }
+        /* Unmute overlay */
+        #unmute-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        #unmute-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #unmute-button {
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #unmute-button:hover {
+            transform: scale(1.1);
+        }
+        /* Mobile responsive - Overlay controls */
+        @media (max-width: 768px) {
+            #controls {
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                opacity: 1 !important;
+                background: rgba(0,0,0,0.8) !important;
+                padding: 15px !important;
+                transform: none !important;
+                transition: opacity 0.3s ease !important;
+                border-top: 1px solid rgba(255,255,255,0.1);
+                z-index: 1000 !important;
+            }                        
+            #controls.hide-mobile {
+                opacity: 0 !important;
+            }                        
+            .control-bar {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                gap: 10px;
+                max-width: 100%;
+            }                        
+            .control-left {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex: 1;
+            }                        
+            .control-right {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex: 1;
+                justify-content: flex-end;
+            }                        
+            .btn {
+                min-width: 35px;
+                min-height: 35px;
+                font-size: 16px;
+                padding: 6px;
+            }                        
+            #volume-slider {
+                width: 40px;
+            }                        
+            #volume-control {
+                gap: 5px;
+            }
+            #unmute-button {
+                width: 60px;
+                height: 60px;
+                font-size: 30px;
+            }        
+        }
+        /* Touch devices - auto hide controls */
+        @media (pointer: coarse) {
+            #controls {
+                position: fixed !important;
+                bottom: 0 !important;
+                transition: opacity 0.3s ease !important;
+            }                        
+            #controls.hide-mobile {
+                opacity: 0 !important;
+            }        
+        }                
+        /* Very small screens */
+        @media (max-width: 480px) {
+            #controls {
+                padding: 12px 8px !important;
+            }                        
+            .control-bar {
+                gap: 8px;
+            }                        
+            .btn {
+                min-width: 32px;
+                min-height: 32px;
+                font-size: 14px;
+            }
+            #unmute-button {
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
+            }        
+        }
+        /* Fullscreen mode - overlay controls with auto-hide */
+        :fullscreen #controls,
+        :-webkit-full-screen #controls,
+        :-moz-full-screen #controls {
+            opacity: 1 !important;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 2147483647 !important;
+            background: rgba(0,0,0,0.7) !important;
+            transition: opacity 0.3s ease !important;
+        }                
+        :fullscreen #controls.hide-mobile,
+        :-webkit-full-screen #controls.hide-mobile,
+        :-moz-full-screen #controls.hide-mobile {
+            opacity: 0 !important;
+        }
 
+        :fullscreen #player-container,
+        :-webkit-full-screen #player-container,
+        :-moz-full-screen #player-container {
+            width: 100vw !important;
+            height: 100vh !important;
+        }
 
-
-<!doctype html>
-<html>
- <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TV4WAP LIVE4WAP</title>
-  <script>
-    // These variables must be calculated BEFORE document.DOMContentLoaded
-    const urlParams = new URLSearchParams(window.location.search);
-    const streamName = urlParams.get('name');
-    
-    // Calculate 'result' just like in the main script
-    let result = streamName ? streamName.replace(/"/g, '') : ''; 
-    
-    // Construct the dynamic URL
-    const scriptUrl = `https://waptv.github.io/json/${result}`;
-    
-    // Write the actual <script> tag into the HTML document stream
-    // This is synchronous and places the script tag where the old one was.
-    // The browser sees this new tag and starts loading it immediately.
-    document.write(`<script src="${scriptUrl}" defer><\/script>`);
-</script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const streamId = urlParams.get('id');
-        const streamName = urlParams.get('name');
+        :fullscreen #video,
+        :-webkit-full-screen #video,
+        :-moz-full-screen #video {
+            width: 100% !important;
+            height: 100% !important;
+        }    
+    </style>
+</head>
+<body>
+    <div id="player-container">
+        <video id="video" playsinline webkit-playsinline muted autoplay></video>
+                <!-- Unmute overlay -->
+        <div id="unmute-overlay">
+            <div id="unmute-button">🔇</div>
+        </div>
+                <div id="loading">
+            <span class="spinner"></span>
+            Loading stream...
+        </div>
+                <div id="error-msg">
+            <h3>Stream Error</h3>
+            <p id="error-text"></p>
+            <button onclick="retryStream()" class="btn" style="background: white; color: red; margin-top: 10px;">Retry</button>
+        </div>
+                <div id="controls">
+            <div class="control-bar">
+                <div class="control-left">
+                    <button id="play-btn" class="btn">⏸</button>
+                    <div id="volume-control">
+                        <button id="mute-btn" class="btn">🔊</button>
+                        <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1">
+                    </div>
+                </div>
+                <div class="control-right">
+                    <button id="zoom-btn" class="btn">🔍</button>
+                    <button id="fullscreen-btn" class="btn">⛶</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.14/dist/hls.min.js"></script>
+    <script>
+        let hls = null;
+        let video = null;
+        let currentChannel = null;
+        let zoomLevel = 1;
+        let zoomStates = [1, 1.2, 1.5];
+        let currentZoomIndex = 0;
         
-       let result = streamName ? streamName.replace(/"/g, '') : 'toffee'; 
-       
-        if (!streamId) {
-            console.error("Stream ID (id) is missing.");
+        // Proxy URL used by the original code. It is now conditional.
+        const PROXY_BASE_URL = 'https://mini.allinonereborn.online/events/stream_proxy.php?url=';
+
+
+        // Function to extract channel data from URL query parameters
+        function getChannelDataFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const m3u8Url = params.get('url');
+            const title = params.get('title');
+            const id = params.get('id');
+            
+            // Check for 'proxy' parameter: default is true unless set explicitly to 'false'
+            const useProxy = params.get('proxy') !== 'false';
+
+            if (m3u8Url) {
+                return {
+                    id: id || 'url-stream',
+                    title: title || 'Live Stream from URL',
+                    m3u8: m3u8Url,
+                    useProxy: useProxy // Include proxy flag
+                };
+            }
+            return null;
+        }
+
+        async function initPlayer() {
+            video = document.getElementById('video');
+            
+            try {
+                const urlData = getChannelDataFromUrl();
+
+                if (urlData) {
+                    currentChannel = urlData;
+                } else {
+                    throw new Error('Missing "url" parameter in the query string. Please provide a stream URL.');
+                }
+
+                document.getElementById('title').textContent = currentChannel.title;
+                setupControls();
+                loadStream();
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError(error.message);
+            }
+        }
+
+        function setupControls() {
+            const playBtn = document.getElementById('play-btn');
+            const muteBtn = document.getElementById('mute-btn');
+            const volumeSlider = document.getElementById('volume-slider');
+            const zoomBtn = document.getElementById('zoom-btn');
+            const fullscreenBtn = document.getElementById('fullscreen-btn');
+            const unmuteOverlay = document.getElementById('unmute-overlay');
+            const unmuteButton = document.getElementById('unmute-button');
+
+            // Unmute overlay functionality
+            function updateUnmuteOverlay() {
+                if (video.muted) {
+                    unmuteOverlay.classList.remove('hidden');
+                } else {
+                    unmuteOverlay.classList.add('hidden');
+                }
+            }
+
+            unmuteOverlay.addEventListener('click', () => {
+                video.muted = false;
+                updateMuteButton();
+                updateUnmuteOverlay();
+            });
+
+            playBtn.addEventListener('click', togglePlay);
+            muteBtn.addEventListener('click', toggleMute);
+            volumeSlider.addEventListener('input', (e) => {
+                video.volume = e.target.value;
+                updateMuteButton();
+            });
+            zoomBtn.addEventListener('click', toggleZoom);
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+            video.addEventListener('play', () => {
+                playBtn.textContent = '⏸';
+                hideLoading();
+            });
+
+            video.addEventListener('pause', () => {
+                playBtn.textContent = '▶';
+            });
+
+            video.addEventListener('volumechange', () => {
+                updateMuteButton();
+                updateUnmuteOverlay();
+            });
+
+            video.addEventListener('waiting', showLoading);
+            video.addEventListener('canplay', hideLoading);
+            
+            // Mobile control auto-hide functionality
+            let hideTimer;
+            
+            function showControls() {
+                const controls = document.getElementById('controls');
+                controls.classList.remove('hide-mobile');
+
+                if (hideTimer) {
+                    clearTimeout(hideTimer);
+                }
+
+                hideTimer = setTimeout(() => {
+                    controls.classList.add('hide-mobile');
+                }, 3000);
+            }
+
+            // Show controls on video tap/click
+            video.addEventListener('click', showControls);
+            video.addEventListener('touchstart', showControls);
+
+            // Show controls when interacting with control elements
+            document.getElementById('controls').addEventListener('click', (e) => {
+                e.stopPropagation();
+                showControls();
+            });
+
+            // Show controls initially for 3 seconds
+            setTimeout(() => {
+                showControls();
+            }, 500);
+
+            // Initialize mute state and overlay
+            updateMuteButton();
+            updateUnmuteOverlay();
+        }
+
+        // CORRECTED: Conditional loading with proxy to fix network errors
+        function loadStream() {
+            showLoading();
+            
+            let streamUrl = currentChannel.m3u8;
+
+            // Use the proxy if the 'useProxy' flag is true (default)
+            if (currentChannel.useProxy) {
+                // Ensure the M3U8 URL is encoded before passing it to the external proxy
+                streamUrl = PROXY_BASE_URL + encodeURIComponent(currentChannel.m3u8); 
+                console.log("Using proxy URL:", streamUrl);
+            } else {
+                console.log("Using direct URL (CORS required):", streamUrl);
+            }
+
+            if (Hls.isSupported()) {
+                // Initialize HLS.js
+                hls = new Hls({
+                    // Increased timeouts and retries for network resilience
+                    manifestLoadingTimeOut: 10000,
+                    manifestLoadingMaxRetry: 3,
+                    levelLoadingTimeOut: 10000,
+                    levelLoadingMaxRetry: 3,
+                    fragLoadingTimeOut: 20000,
+                    fragLoadingMaxRetry: 3,
+                    enableWorker: true, // Re-enabled worker for better performance
+                    
+                    // Other settings from original code
+                    maxBufferLength: 20,
+                    maxMaxBufferLength: 30,
+                    maxBufferSize: 30 * 1000 * 1000,
+                    maxBufferHole: 0.3,
+                    lowLatencyMode: true,
+                    backBufferLength: 30,
+                    abrEwmaDefaultEstimate: 300000,
+                    abrEwmaSlowVoD: 5,
+                    abrEwmaFastVoD: 5,
+                    abrEwmaSlowLive: 12,
+                    abrEwmaFastLive: 8,
+                    abrBandWidthFactor: 0.85,
+                    abrBandWidthUpFactor: 0.6,
+                    startLevel: 0,
+                    capLevelToPlayerSize: true,
+                    capLevelOnFPSDrop: true,
+                    enableSoftwareAES: false
+                });
+
+                hls.loadSource(streamUrl);
+                hls.attachMedia(video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, onManifestParsed);
+                hls.on(Hls.Events.ERROR, onHlsError);
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS support (e.g., Safari)
+                video.src = streamUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    hideLoading();
+                });
+            } else {
+                showError('HLS not supported in this browser');
+            }
+        }
+
+        function onManifestParsed(event, data) {
+            hideLoading();
+            video.play().catch(e => {
+                console.warn('Autoplay blocked:', e);
+            });
+        }
+
+        function onHlsError(event, data) {
+            console.error('HLS Error:', data);
+            
+            // Added more descriptive error message for Network Errors
+            let errorMessage = `Playback error: ${data.details}`;
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                errorMessage = `Network Error (HTTP ${data.response?.code}): Could not load stream. If this error persists, the stream likely requires CORS headers or a proxy.`;
+            }
+
+            if (data.fatal) {
+                switch (data.type) {
+                    case Hls.ErrorTypes.NETWORK_ERROR:
+                        showError(errorMessage); // Show the descriptive error
+                        // No automatic retry, let the user retry with the button
+                        break;
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                        showError('Media error - recovering...');
+                        hls.recoverMediaError();
+                        break;
+                    default:
+                        showError(errorMessage);
+                        break;
+                }
+            }
+        }
+
+        function togglePlay() {
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+        }
+
+        function toggleMute() {
+            video.muted = !video.muted;
+            updateMuteButton();
+        }
+
+        function updateMuteButton() {
+            const muteBtn = document.getElementById('mute-btn');
+            if (video.muted || video.volume === 0) {
+                muteBtn.textContent = '🔇';
+            } else if (video.volume < 0.5) {
+                muteBtn.textContent = '🔉';
+            } else {
+                muteBtn.textContent = '🔊';
+            }
+        }
+
+        function toggleZoom() {
+            currentZoomIndex = (currentZoomIndex + 1) % zoomStates.length;
+            zoomLevel = zoomStates[currentZoomIndex];
+
+            video.style.transform = `scale(${zoomLevel})`;
+            video.style.transformOrigin = 'center center';
+
+            const zoomBtn = document.getElementById('zoom-btn');
+            if (zoomLevel === 1) {
+                zoomBtn.textContent = '🔍';
+            } else if (zoomLevel === 1.2) {
+                zoomBtn.textContent = '🔍+'; 
+            } else { // zoomLevel is 1.5
+                zoomBtn.textContent = '🔍++';
+            }
+        }
+
+        function toggleFullscreen() {
+            const playerContainer = document.getElementById('player-container');
+            if (!document.fullscreenElement) {
+                playerContainer.requestFullscreen().catch(e => {
+                    console.warn('Fullscreen failed:', e);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showError(message) {
+            hideLoading();
+            document.getElementById('error-text').textContent = message;
+            document.getElementById('error-msg').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error-msg').style.display = 'none';
+        }
+
+        function retryStream() {
+            hideError();
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            loadStream();
+        }
+
+        document.addEventListener('DOMContentLoaded', initPlayer);
+    </script>
+</body>
+</html>
             return;
         }
         
