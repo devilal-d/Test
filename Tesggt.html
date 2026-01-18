@@ -2,98 +2,111 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Premium Video Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+    <title>Premium Ad-Free Player</title>
     
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css"/>
     
     <style>
+        /* UI Matching your screenshot */
         :root {
-            /* This changes the "blue" parts of Plyr to the Red from your screenshot */
-            --plyr-color-main: #ff0000; 
+            --plyr-color-main: #ff0000; /* Red progress bar & accents */
+            --plyr-video-background: #000;
+            --plyr-menu-background: rgba(26, 26, 26, 0.9);
         }
 
         body, html { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: #000; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background: #000; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
         }
 
         .player-wrapper { 
             width: 100%; 
-            max-width: 1000px; /* Optional: limit width on desktop */
-            background: #000;
+            height: 100%;
+            display: flex;
+            align-items: center;
         }
 
-        /* Custom UI Tweaks to match the screenshot */
-        .plyr--video {
-            border-radius: 0; /* Square edges like a full-screen mobile app */
-        }
-
-        /* Making the Seek Bar thicker and more visible */
+        /* Styling the seek bar to look like your pic */
         .plyr__progress__container {
-            padding-bottom: 10px;
-        }
-
-        /* Hide the default Plyr background overlay to keep it dark and cinematic */
-        .plyr--full-ui.plyr--video .plyr__control--overlaid {
-            background: rgba(255, 255, 255, 0.1);
+            margin-bottom: 5px;
         }
         
-        /* Custom Font */
-        .plyr {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        /* Centering the big play button */
+        .plyr--video .plyr__control--overlaid {
+            background: rgba(255, 0, 0, 0.2);
+            padding: 20px;
         }
+
+        /* Clean full-screen look */
+        .plyr--full-ui { height: 100% !important; }
     </style>
 </head>
-
 <body>
 
 <div class="player-wrapper">
-    <video id="player" playsinline crossorigin></video>
+    <video id="player" playsinline controls></video>
 </div>
 
-<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
 <script>
-    const video = document.getElementById("player");
-    const STREAM_URL = new URLSearchParams(window.location.search).get("dtv");
+document.addEventListener('DOMContentLoaded', () => {
+    const video = document.getElementById('player');
+    const source = new URLSearchParams(window.location.search).get('dtv');
 
-    if(!STREAM_URL) {
-        console.error("No stream URL provided in ?dtv=");
+    if (!source) {
+        console.error("No stream URL found. Add ?dtv=YOUR_URL to the address bar.");
+        return;
     }
 
-    // Plyr Configuration
-    const controls = [
-        'play-large', // Central play button
-        'play',       // Bottom left play
-        'progress',   // Red progress bar
-        'current-time', 
-        'duration', 
-        'mute', 
-        'volume', 
-        'settings', 
-        'fullscreen'
-    ];
+    // Plyr Options
+    const defaultOptions = {
+        controls: [
+            'play-large', 'play', 'progress', 'current-time', 
+            'mute', 'volume', 'settings', 'fullscreen'
+        ],
+        settings: ['quality', 'speed'],
+        invertTime: false,
+        displayDuration: true
+    };
 
     if (Hls.isSupported()) {
         const hls = new Hls();
-        hls.loadSource(STREAM_URL);
+        hls.loadSource(source);
         hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, function () {
-            const player = new Plyr(video, { controls, tooltips: { controls: true, seek: true } });
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
+            // Quality selection logic
+            const availableQualities = hls.levels.map((l) => l.height);
+            defaultOptions.quality = {
+                default: availableQualities[0],
+                options: availableQualities,
+                forced: true,
+                onChange: (e) => updateQuality(e),
+            };
+            new Plyr(video, defaultOptions);
         });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS support (Safari)
-        video.src = STREAM_URL;
-        const player = new Plyr(video, { controls });
+
+        window.hls = hls;
+    } 
+    else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Fallback for Safari
+        video.src = source;
+        new Plyr(video, defaultOptions);
     }
+
+    function updateQuality(newQuality) {
+        window.hls.levels.forEach((level, levelIndex) => {
+            if (level.height === newQuality) {
+                console.log("Found quality match with " + newQuality);
+                window.hls.currentLevel = levelIndex;
+            }
+        });
+    }
+});
 </script>
 
 </body>
