@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Premium Video Player</title>
+    
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css"/>
+    
+    <style>
+        :root {
+            /* This changes the "blue" parts of Plyr to the Red from your screenshot */
+            --plyr-color-main: #ff0000; 
+        }
+
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #000; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+        }
+
+        .player-wrapper { 
+            width: 100%; 
+            max-width: 1000px; /* Optional: limit width on desktop */
+            background: #000;
+        }
+
+        /* Custom UI Tweaks to match the screenshot */
+        .plyr--video {
+            border-radius: 0; /* Square edges like a full-screen mobile app */
+        }
+
+        /* Making the Seek Bar thicker and more visible */
+        .plyr__progress__container {
+            padding-bottom: 10px;
+        }
+
+        /* Hide the default Plyr background overlay to keep it dark and cinematic */
+        .plyr--full-ui.plyr--video .plyr__control--overlaid {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Custom Font */
+        .plyr {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="player-wrapper">
+    <video id="player" playsinline crossorigin></video>
+</div>
+
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+<script>
+    const video = document.getElementById("player");
+    const STREAM_URL = new URLSearchParams(window.location.search).get("dtv");
+
+    if(!STREAM_URL) {
+        console.error("No stream URL provided in ?dtv=");
+    }
+
+    // Plyr Configuration
+    const controls = [
+        'play-large', // Central play button
+        'play',       // Bottom left play
+        'progress',   // Red progress bar
+        'current-time', 
+        'duration', 
+        'mute', 
+        'volume', 
+        'settings', 
+        'fullscreen'
+    ];
+
+    if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(STREAM_URL);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            const player = new Plyr(video, { controls, tooltips: { controls: true, seek: true } });
+        });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS support (Safari)
+        video.src = STREAM_URL;
+        const player = new Plyr(video, { controls });
+    }
+</script>
+
+</body>
+</html>
