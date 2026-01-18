@@ -1,131 +1,115 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8"/>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
-    <title>Kesari Style Player</title>
-    
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css"/>
-    
-    <style>
-        /* UI MATCHING YOUR PICTURE */
-        :root {
-            --plyr-color-main: #ff0000; /* Bright Red Progress Bar */
-            --plyr-video-background: #000;
-        }
+    <title>Premium Shaka Player</title>
 
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            background: #000; overflow: hidden; 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.7.11/dist/controls.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.7.11/dist/shaka-player.ui.js"></script>
+
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #000; overflow: hidden;
             display: flex; align-items: center; justify-content: center;
         }
 
-        .player-wrapper { 
-            width: 100%; height: 100%; 
-            display: flex; align-items: center; 
+        /* Container for the player */
+        #video-container {
+            width: 100%;
+            height: 100%;
         }
 
-        /* Customize Control Bar to look like the mobile screenshot */
-        .plyr--full-ui {
-            --plyr-control-spacing: 12px;
-            --plyr-control-radius: 4px;
+        video {
+            width: 100%;
+            height: 100%;
         }
 
-        /* Make the seek bar thicker like the screenshot */
-        .plyr__progress__container {
-            height: 6px;
+        /* --- UI CUSTOMIZATION TO MATCH PHOTO --- */
+
+        /* 1. Change Seek Bar to Red */
+        .shaka-range-element::-webkit-slider-runnable-track {
+            background: linear-gradient(to right, #ff0000 0%, #ff0000 var(--range-percent), rgba(255, 255, 255, 0.3) var(--range-percent), rgba(255, 255, 255, 0.3) 100%) !important;
         }
         
-        /* Center big Play/Pause button styling */
-        .plyr--video .plyr__control--overlaid {
-            background: rgba(0, 0, 0, 0.5);
+        /* 2. Style the Scrubber Knob */
+        .shaka-range-element::-webkit-slider-thumb {
+            background: #ff0000 !important;
+        }
+
+        /* 3. Center Big Play Button Style */
+        .shaka-play-button-container {
+            font-size: 1.5em;
+        }
+
+        .shaka-play-button {
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.5);
             border: 2px solid #fff;
         }
 
-        /* Hide ads/external elements */
-        iframe, .ads, #recollectsideway {
-            display: none !important;
-            visibility: hidden !important;
+        /* 4. Bottom Controls Background */
+        .shaka-controls-container {
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
         }
+
+        /* Hide ads/hidden frames */
+        iframe, .ads { display: none !important; }
     </style>
 </head>
 <body>
 
-<div class="player-wrapper">
-    <video id="player" playsinline crossorigin></video>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+    <div id="video-container" shaka-controls="true">
+        <video id="video" poster="" autoplay playsinline crossorigin></video>
+    </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const video = document.getElementById('player');
-    
-    // Get URL Parameter
+async function initPlayer() {
+    // 1. Get the stream URL from the ?dtv= parameter
     const urlParams = new URLSearchParams(window.location.search);
-    const source = urlParams.get('dtv');
+    const manifestUri = urlParams.get('dtv');
 
-    if (!source) {
-        alert("Please add ?dtv=LINK to the URL");
+    if (!manifestUri) {
+        alert("No stream found! Use: name.html?dtv=YOUR_URL");
         return;
     }
 
-    // Plyr Configuration
-    const player = new Plyr(video, {
-        controls: [
-            'play-large', // Middle button
-            'play',        // Bottom play
-            'progress',    // Red Bar
-            'current-time', 
-            'duration', 
-            'mute', 
-            'volume', 
-            'settings', 
-            'fullscreen'
-        ],
-        tooltips: { controls: true, seek: true },
-        keyboard: { focused: true, global: true }
-    });
+    const video = document.getElementById('video');
+    const videoContainer = document.getElementById('video-container');
 
-    // HLS Support Logic
-    if (Hls.isSupported()) {
-        const hls = new Hls({
-            capLevelToPlayerSize: true,
-            autoStartLoad: true
-        });
-        
-        hls.loadSource(source);
-        hls.attachMedia(video);
-        
-        hls.on(Hls.Events.MANIFEST_PARSED, function () {
-            // Quality Settings
-            const availableQualities = hls.levels.map((l) => l.height);
-            player.config.quality = {
-                default: availableQualities[0],
-                options: availableQualities,
-                forced: true,
-                onChange: (newQuality) => {
-                    hls.levels.forEach((level, levelIndex) => {
-                        if (level.height === newQuality) {
-                            hls.currentLevel = levelIndex;
-                        }
-                    });
-                }
-            };
-            
-            // Start playback (muted to ensure browser allows it)
-            video.muted = true;
-            video.play();
-        });
+    // 2. Initialize Shaka Player
+    const player = new shaka.Player(video);
 
-        window.hls = hls;
-    } 
-    else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Fallback for Safari/iOS
-        video.src = source;
+    // 3. Setup UI Overlay
+    const ui = new shaka.ui.Overlay(player, videoContainer, video);
+    
+    // Customize UI Config (Matching your picture's layout)
+    const config = {
+        'controlPanelElements': ['play_pause', 'time_and_duration', 'spacer', 'mute', 'quality', 'fullscreen'],
+        'addSeekBar': true
+    };
+    ui.configure(config);
+
+    // 4. Load the stream
+    try {
+        await player.load(manifestUri);
+        console.log('The video has now been loaded!');
+        // Mute to allow autoplay
+        video.muted = true;
+        video.play();
+    } catch (e) {
+        console.error('Error loading video', e);
     }
-});
+}
+
+// Ensure Shaka loads correctly
+document.addEventListener('shaka-ui-loaded', initPlayer);
+// Check if already loaded
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    if (window.shaka) initPlayer();
+}
 </script>
 
 </body>
