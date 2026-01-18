@@ -3,50 +3,56 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
-    <title>Premium Ad-Free Player</title>
+    <title>Kesari Style Player</title>
     
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css"/>
     
     <style>
-        /* UI Matching your screenshot */
+        /* UI MATCHING YOUR PICTURE */
         :root {
-            --plyr-color-main: #ff0000; /* Red progress bar & accents */
+            --plyr-color-main: #ff0000; /* Bright Red Progress Bar */
             --plyr-video-background: #000;
-            --plyr-menu-background: rgba(26, 26, 26, 0.9);
         }
 
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
-            background: #000; overflow: hidden;
+            background: #000; overflow: hidden; 
             display: flex; align-items: center; justify-content: center;
         }
 
         .player-wrapper { 
-            width: 100%; 
-            height: 100%;
-            display: flex;
-            align-items: center;
+            width: 100%; height: 100%; 
+            display: flex; align-items: center; 
         }
 
-        /* Styling the seek bar to look like your pic */
+        /* Customize Control Bar to look like the mobile screenshot */
+        .plyr--full-ui {
+            --plyr-control-spacing: 12px;
+            --plyr-control-radius: 4px;
+        }
+
+        /* Make the seek bar thicker like the screenshot */
         .plyr__progress__container {
-            margin-bottom: 5px;
+            height: 6px;
         }
         
-        /* Centering the big play button */
+        /* Center big Play/Pause button styling */
         .plyr--video .plyr__control--overlaid {
-            background: rgba(255, 0, 0, 0.2);
-            padding: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #fff;
         }
 
-        /* Clean full-screen look */
-        .plyr--full-ui { height: 100% !important; }
+        /* Hide ads/external elements */
+        iframe, .ads, #recollectsideway {
+            display: none !important;
+            visibility: hidden !important;
+        }
     </style>
 </head>
 <body>
 
 <div class="player-wrapper">
-    <video id="player" playsinline controls></video>
+    <video id="player" playsinline crossorigin></video>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -55,56 +61,69 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const video = document.getElementById('player');
-    const source = new URLSearchParams(window.location.search).get('dtv');
+    
+    // Get URL Parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const source = urlParams.get('dtv');
 
     if (!source) {
-        console.error("No stream URL found. Add ?dtv=YOUR_URL to the address bar.");
+        alert("Please add ?dtv=LINK to the URL");
         return;
     }
 
-    // Plyr Options
-    const defaultOptions = {
+    // Plyr Configuration
+    const player = new Plyr(video, {
         controls: [
-            'play-large', 'play', 'progress', 'current-time', 
-            'mute', 'volume', 'settings', 'fullscreen'
+            'play-large', // Middle button
+            'play',        // Bottom play
+            'progress',    // Red Bar
+            'current-time', 
+            'duration', 
+            'mute', 
+            'volume', 
+            'settings', 
+            'fullscreen'
         ],
-        settings: ['quality', 'speed'],
-        invertTime: false,
-        displayDuration: true
-    };
+        tooltips: { controls: true, seek: true },
+        keyboard: { focused: true, global: true }
+    });
 
+    // HLS Support Logic
     if (Hls.isSupported()) {
-        const hls = new Hls();
+        const hls = new Hls({
+            capLevelToPlayerSize: true,
+            autoStartLoad: true
+        });
+        
         hls.loadSource(source);
         hls.attachMedia(video);
         
-        hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
-            // Quality selection logic
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            // Quality Settings
             const availableQualities = hls.levels.map((l) => l.height);
-            defaultOptions.quality = {
+            player.config.quality = {
                 default: availableQualities[0],
                 options: availableQualities,
                 forced: true,
-                onChange: (e) => updateQuality(e),
+                onChange: (newQuality) => {
+                    hls.levels.forEach((level, levelIndex) => {
+                        if (level.height === newQuality) {
+                            hls.currentLevel = levelIndex;
+                        }
+                    });
+                }
             };
-            new Plyr(video, defaultOptions);
+            
+            // Start playback (muted to ensure browser allows it)
+            video.muted = true;
+            video.play();
         });
 
         window.hls = hls;
     } 
     else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Fallback for Safari
+        // Fallback for Safari/iOS
         video.src = source;
-        new Plyr(video, defaultOptions);
-    }
-
-    function updateQuality(newQuality) {
-        window.hls.levels.forEach((level, levelIndex) => {
-            if (level.height === newQuality) {
-                console.log("Found quality match with " + newQuality);
-                window.hls.currentLevel = levelIndex;
-            }
-        });
     }
 });
 </script>
